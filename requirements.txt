@@ -1,0 +1,52 @@
+# Enterprise RAG Chatbot - Complete Dependencies
+# This file includes all dependencies for both Streamlit and FastAPI versions
+
+# Core Framework
+streamlit>=1.28.0
+
+# Environment and Configuration
+python-dotenv==1.0.0
+
+# LangChain Core Components
+langchain>=0.1.7
+langchain-pinecone>=0.0.3
+langchain-community>=0.0.10
+langchain-core>=0.1.7
+langchain-openai>=0.0.5
+langchain-huggingface>=0.0.1
+langchain-text-splitters>=0.0.1
+
+# Document Processing
+pypdf>=3.17.4
+
+# Embeddings and ML
+sentence-transformers>=2.2.2
+huggingface-hub>=0.19.4
+
+# LLM and APIs
+openai>=1.6.1
+
+# Vector Database
+pinecone-client>=2.2.4
+
+# Data Validation
+pydantic>=2.5.2
+
+# Optional: FastAPI dependencies (if you want to run both versions)
+# Uncomment the lines below if you need FastAPI functionality
+# fastapi==0.104.1
+# uvicorn[standard]==0.24.0
+# python-multipart==0.0.6
+
+# Additional useful packages for production
+requests>=2.25.0
+numpy>=1.20.0
+pandas>=1.3.0
+
+# Security and performance
+cryptography>=3.4.8
+urllib3>=1.26.0
+
+# Development and debugging (optional)
+# streamlit-chat>=0.1.1
+# streamlit-extras>=0.3.0

@@ -1,0 +1,17 @@
+streamlit
+langchain
+langchain-pinecone
+langchain-community
+langchain-core
+langchain-openai
+langchain-huggingface
+langchain-text-splitters
+python-dotenv
+pypdf
+sentence-transformers
+huggingface-hub
+openai
+cryptography
+jwt
+bcrypt
+pinecone-client

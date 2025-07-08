@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise RAG Chatbot</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="loading-screen">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p>Initializing Enterprise RAG...</p>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div id="main-container" class="main-container hidden">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo-section">
+                    <div class="logo">
+                        <i class="fas fa-brain"></i>
+                    </div>
+                    <div class="logo-text">
+                        <h1>Enterprise RAG</h1>
+                        <p>AI-Powered Document Assistant</p>
+                    </div>
+                </div>
+                
+                <div class="header-controls">
+                    <div class="status-indicator online">
+                        <div class="status-dot"></div>
+                        <span>Online</span>
+                    </div>
+                    <button id="theme-toggle" class="btn-icon theme-toggle" title="Toggle Dark/Light Mode">
+                        <i class="fas fa-moon theme-icon-dark"></i>
+                        <i class="fas fa-sun theme-icon-light"></i>
+                    </button>
+                    <button id="settings-btn" class="btn-icon" title="Settings">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                    <button id="sidebar-toggle" class="btn-icon" title="Toggle Sidebar">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Sidebar -->
+            <aside id="sidebar" class="sidebar">
+                <!-- File Upload Section -->
+                <div class="sidebar-section">
+                    <h3><i class="fas fa-upload"></i> Document Upload</h3>
+                    <div class="upload-area" id="upload-area">
+                        <div class="upload-content">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <p>Drag & Drop PDF files</p>
+                            <p class="upload-hint">or click to browse</p>
+                            <input type="file" id="file-input" multiple accept=".pdf,.txt,.docx" hidden>
+                        </div>
+                    </div>
+                    <div id="file-list" class="file-list"></div>
+                    <button id="upload-btn" class="btn-primary" disabled>
+                        <i class="fas fa-upload"></i>
+                        Upload Documents
+                    </button>
+                    <button id="clear-docs-btn" class="btn-secondary" style="margin-top: 10px;" disabled>
+                        <i class="fas fa-trash-alt"></i>
+                        Clear All Documents
+                    </button>
+                </div>
+
+                <!-- System Status -->
+                <div class="sidebar-section">
+                    <h3><i class="fas fa-chart-line"></i> System Status</h3>
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-value" id="docs-count">0</div>
+                            <div class="metric-label">Documents</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value" id="queries-count">0</div>
+                            <div class="metric-label">Queries</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value" id="avg-time">0ms</div>
+                            <div class="metric-label">Avg Response</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value" id="backend-status">-</div>
+                            <div class="metric-label">Backend</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings Panel -->
+                <div class="sidebar-section">
+                    <h3><i class="fas fa-sliders-h"></i> AI Settings</h3>
+                    <div class="setting-group">
+                        <label for="temperature-slider">
+                            <span>Temperature</span>
+                            <span id="temperature-value">0.1</span>
+                        </label>
+                        <input type="range" id="temperature-slider" min="0" max="1" step="0.1" value="0.1">
+                        <small>Lower = More focused, Higher = More creative</small>
+                    </div>
+                    
+                    <div class="setting-group">
+                        <label for="max-tokens-slider">
+                            <span>Max Tokens</span>
+                            <span id="max-tokens-value">1000</span>
+                        </label>
+                        <input type="range" id="max-tokens-slider" min="100" max="2000" step="100" value="1000">
+                        <small>Controls response length</small>
+                    </div>
+
+                    <button id="clear-chat-btn" class="btn-secondary">
+                        <i class="fas fa-trash"></i>
+                        Clear Chat History
+                    </button>
+                </div>
+            </aside>
+
+            <!-- Chat Area -->
+            <main class="chat-container">
+                <!-- Chat Messages -->
+                <div id="chat-messages" class="chat-messages">
+                    <div class="welcome-message">
+                        <div class="welcome-icon">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <h2>Welcome to Enterprise RAG</h2>
+                        <p>Upload your documents and start asking questions. I'll help you find the information you need with AI-powered precision.</p>
+                        <div class="feature-list">
+                            <div class="feature-item">
+                                <i class="fas fa-file-pdf"></i>
+                                <span>PDF Document Analysis</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-search"></i>
+                                <span>Intelligent Information Retrieval</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-quote-left"></i>
+                                <span>Source Citations</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chat Input -->
+                <div class="chat-input-container">
+                    <div class="chat-input-wrapper">
+                        <textarea 
+                            id="chat-input" 
+                            placeholder="Ask a question about your documents..."
+                            rows="1"
+                            disabled></textarea>
+                        <button id="send-btn" class="send-btn" disabled>
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                    <div class="input-footer">
+                        <div class="upload-status" id="upload-status">
+                            Upload documents to start chatting
+                        </div>
+                        <div class="character-count">
+                            <span id="char-count">0</span>/1000
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Settings</h3>
+                <button class="close-modal" id="close-settings">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="setting-section">
+                    <h4>AI Configuration</h4>
+                    <p>Fine-tune the AI's behavior for your specific needs.</p>
+                </div>
+                <div class="setting-section">
+                    <h4>Session Management</h4>
+                    <button id="new-session-btn" class="btn-primary">
+                        <i class="fas fa-plus"></i>
+                        New Session
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Upload Progress Modal -->
+    <div id="upload-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Uploading Documents</h3>
+            </div>
+            <div class="modal-body">
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="upload-progress"></div>
+                    </div>
+                    <div class="progress-text">
+                        <span id="progress-percentage">0%</span>
+                        <span id="progress-status">Preparing upload...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
