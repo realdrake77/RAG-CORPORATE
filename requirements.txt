@@ -27,7 +27,7 @@ huggingface-hub>=0.19.4
 openai>=1.6.1
 
 # Vector Database
-pinecone-client>=2.2.4
+pinecone>=4.0.0
 
 # Data Validation
 pydantic>=2.5.2
