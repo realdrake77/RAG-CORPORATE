@@ -13,7 +13,12 @@ from typing import List, Dict, Any, Optional
 import base64
 
 # Import existing components
-from pinecone_vector_db import PineconeVectorDB
+try:
+    from pinecone_vector_db import PineconeVectorDB
+except ImportError as e:
+    st.error(f"❌ Failed to import PineconeVectorDB: {e}")
+    st.stop()
+
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_openai import ChatOpenAI
 from langchain_community.document_loaders import PyPDFLoader
@@ -323,6 +328,11 @@ def initialize_components():
 def create_rag_chain(llm, vector_db):
     """Create the RAG chain for question answering"""
     try:
+        # Check if vector_db has a retriever available
+        retriever = vector_db.get_retriever()
+        if retriever is None:
+            return None  # Return None if no retriever is available yet
+        
         # Contextualize question prompt
         contextualize_q_system_prompt = """Given a chat history and the latest user question 
         which might reference context in the chat history, formulate a standalone question 
@@ -337,7 +347,7 @@ def create_rag_chain(llm, vector_db):
         
         # Create history-aware retriever
         history_aware_retriever = create_history_aware_retriever(
-            llm, vector_db.get_retriever(), contextualize_q_prompt
+            llm, retriever, contextualize_q_prompt
         )
         
         # Answer question prompt
@@ -418,7 +428,13 @@ def process_documents(uploaded_files, vector_db):
         status_text.text("Indexing documents in vector database...")
         progress_bar.progress(0.9)
         
-        vector_db.index_documents(all_docs)
+        # Check if vectorstore exists, if not create it, otherwise add documents
+        if not hasattr(vector_db, 'vectorstore') or vector_db.vectorstore is None:
+            # First time indexing - create vectorstore
+            vector_db.create_vectorstore(all_docs)
+        else:
+            # Add to existing vectorstore
+            vector_db.add_documents(all_docs)
         
         progress_bar.progress(1.0)
         status_text.text("✅ Documents processed successfully!")
@@ -426,6 +442,9 @@ def process_documents(uploaded_files, vector_db):
         # Update stats
         st.session_state.processing_stats['documents_indexed'] += len(all_docs)
         st.session_state.documents_uploaded = True
+        
+        # Recreate RAG chain with updated vector database
+        st.session_state.rag_chain = create_rag_chain(st.session_state.llm, vector_db)
         
         return True
         
@@ -475,7 +494,7 @@ def main():
                 st.session_state.embeddings = embeddings
                 st.session_state.vector_db = vector_db
                 st.session_state.llm = llm
-                st.session_state.rag_chain = create_rag_chain(llm, vector_db)
+                st.session_state.rag_chain = create_rag_chain(llm, vector_db)  # May be None initially
                 st.session_state.initialized = True
                 st.rerun()
             else:
@@ -532,6 +551,11 @@ def main():
             st.session_state.messages = []
             st.session_state.chat_history = ChatMessageHistory()
             st.rerun()
+        
+        if st.button("🔄 Clear Cache & Restart", use_container_width=True):
+            st.cache_resource.clear()
+            st.session_state.clear()
+            st.rerun()
     
     # Main chat interface
     st.markdown("### 💬 Chat Interface")
@@ -553,6 +577,10 @@ def main():
     if prompt := st.chat_input("Ask a question about your documents..."):
         if not st.session_state.documents_uploaded:
             st.warning("Please upload and process documents first!")
+            return
+        
+        if not st.session_state.rag_chain:
+            st.warning("RAG system not ready. Please upload documents first!")
             return
         
         # Add user message
