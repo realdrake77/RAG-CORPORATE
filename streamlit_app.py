@@ -324,6 +324,39 @@ def initialize_components():
         st.error(f"Failed to initialize components: {str(e)}")
         return None, None, None
 
+def enhance_query(query: str) -> str:
+    """Enhance short or vague queries to work better with RAG"""
+    query_lower = query.lower().strip()
+    
+    # Common short queries and their enhancements
+    query_enhancements = {
+        "summarize": "Please provide a comprehensive summary of the uploaded documents",
+        "summary": "Please provide a comprehensive summary of the uploaded documents", 
+        "explain": "Please explain the main concepts and points from the uploaded documents",
+        "what is this": "What are these documents about? Please provide an overview",
+        "tell me": "Tell me about the content of the uploaded documents",
+        "describe": "Describe the main content and key points from the uploaded documents",
+        "overview": "Provide an overview of the uploaded documents",
+        "main points": "What are the main points covered in the uploaded documents?",
+        "key points": "What are the key points covered in the uploaded documents?",
+        "important": "What are the important points from the uploaded documents?",
+        "analyze": "Please analyze the content of the uploaded documents",
+        "analysis": "Please provide an analysis of the uploaded documents"
+    }
+    
+    # Check for exact matches
+    if query_lower in query_enhancements:
+        return query_enhancements[query_lower]
+    
+    # Check for partial matches for very short queries
+    if len(query.split()) <= 2:
+        for key, enhancement in query_enhancements.items():
+            if key in query_lower:
+                return enhancement
+    
+    # Return original query if no enhancement needed
+    return query
+
 # Create RAG chain
 def create_rag_chain(llm, vector_db):
     """Create the RAG chain for question answering"""
@@ -333,11 +366,18 @@ def create_rag_chain(llm, vector_db):
         if retriever is None:
             return None  # Return None if no retriever is available yet
         
-        # Contextualize question prompt
+        # Contextualize question prompt with better handling for short queries
         contextualize_q_system_prompt = """Given a chat history and the latest user question 
         which might reference context in the chat history, formulate a standalone question 
-        which can be understood without the chat history. Do NOT answer the question, 
-        just reformulate it if needed and otherwise return it as is."""
+        which can be understood without the chat history. 
+        
+        If the user's question is very short or vague (like "summarize", "explain", "what is this"), 
+        expand it to refer to the documents they've uploaded. For example:
+        - "summarize" → "summarize the uploaded documents"
+        - "explain" → "explain the main points from the documents"
+        - "what is this" → "what are these documents about"
+        
+        Do NOT answer the question, just reformulate it if needed and otherwise return it as is."""
         
         contextualize_q_prompt = ChatPromptTemplate.from_messages([
             ("system", contextualize_q_system_prompt),
@@ -350,11 +390,17 @@ def create_rag_chain(llm, vector_db):
             llm, retriever, contextualize_q_prompt
         )
         
-        # Answer question prompt
+        # Answer question prompt with better context handling
         qa_system_prompt = """You are an enterprise AI assistant with access to company documents. 
         Provide accurate, professional responses based on the retrieved context. 
-        Include source information when relevant.
-
+        
+        Guidelines:
+        - If the user asks for a "summary" or "summarize", provide a comprehensive overview of the main points from the documents
+        - If the user asks vague questions, interpret them in the context of the uploaded documents
+        - Always base your responses on the provided context
+        - Include specific details and examples from the documents when relevant
+        - If the query is too vague and you can't find relevant information, ask for clarification
+        
         Context: {context}"""
         
         qa_prompt = ChatPromptTemplate.from_messages([
@@ -547,6 +593,40 @@ def main():
         temperature = st.slider("Temperature", 0.0, 1.0, 0.1, 0.1)
         max_tokens = st.slider("Max Tokens", 100, 2000, 1000, 100)
         
+        # Example queries
+        st.markdown("### 💡 Example Queries")
+        example_queries = [
+            "summarize",
+            "main points", 
+            "key insights",
+            "explain the document",
+            "what is this about?"
+        ]
+        
+        for query in example_queries:
+            if st.button(f"'{query}'", key=f"example_{query}", use_container_width=True):
+                if st.session_state.documents_uploaded and st.session_state.rag_chain:
+                    # Add the example query as if user typed it
+                    st.session_state.messages.append({"role": "user", "content": query})
+                    # Process it immediately
+                    with st.spinner("Processing..."):
+                        enhanced_query = enhance_query(query)
+                        response = st.session_state.rag_chain.invoke(
+                            {"input": enhanced_query},
+                            config={"configurable": {"session_id": "default"}}
+                        )
+                        st.session_state.messages.append({
+                            "role": "assistant", 
+                            "content": response["answer"],
+                            "sources": []
+                        })
+                        st.session_state.processing_stats['queries_processed'] += 1
+                        st.rerun()
+                else:
+                    st.warning("Please upload documents first!")
+        
+        st.markdown("---")
+        
         if st.button("Clear Chat History", use_container_width=True):
             st.session_state.messages = []
             st.session_state.chat_history = ChatMessageHistory()
@@ -574,7 +654,7 @@ def main():
                             st.write(f"- {source}")
     
     # Chat input
-    if prompt := st.chat_input("Ask a question about your documents..."):
+    if prompt := st.chat_input("Ask a question about your documents... (try: 'summarize', 'main points', 'explain')"):
         if not st.session_state.documents_uploaded:
             st.warning("Please upload and process documents first!")
             return
@@ -583,11 +663,19 @@ def main():
             st.warning("RAG system not ready. Please upload documents first!")
             return
         
-        # Add user message
+        # Enhance the query if it's too short or vague
+        enhanced_prompt = enhance_query(prompt)
+        
+        # Show original prompt to user, but use enhanced prompt for processing
         st.session_state.messages.append({"role": "user", "content": prompt})
         
         with st.chat_message("user"):
             st.markdown(prompt)
+        
+        # Show a hint if the query was enhanced
+        if enhanced_prompt != prompt:
+            with st.chat_message("assistant"):
+                st.info(f"💡 I interpreted your query as: '{enhanced_prompt}'")
         
         # Generate response
         with st.chat_message("assistant"):
@@ -599,9 +687,9 @@ def main():
                     st.session_state.llm.temperature = temperature
                     st.session_state.llm.max_tokens = max_tokens
                     
-                    # Get response
+                    # Get response using enhanced prompt
                     response = st.session_state.rag_chain.invoke(
-                        {"input": prompt},
+                        {"input": enhanced_prompt},
                         config={"configurable": {"session_id": "default"}}
                     )
                     
